@@ -151,6 +151,23 @@
 
     simpleBtn.addEventListener('click', () => switchMode('simple'));
     chatBtn.addEventListener('click', () => switchMode('chat'));
+    
+    // --- ROBUST ERROR HANDLING FOR FETCH ---
+    async function getErrorFromResponse(response) {
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+            // Try to parse a JSON error response
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+            // If response is not JSON, read as text
+            const errorText = await response.text();
+            if (errorText) {
+                errorMessage = errorText;
+            }
+        }
+        return new Error(errorMessage);
+    }
 
     // --- SIMPLE PROMPT LOGIC ---
 
@@ -169,8 +186,7 @@
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `Request failed with status ${response.status}`);
+                throw await getErrorFromResponse(response);
             }
 
             const data = await response.json();
@@ -234,8 +250,7 @@
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `Request failed with status ${response.status}`);
+                throw await getErrorFromResponse(response);
             }
             
             const data = await response.json();
