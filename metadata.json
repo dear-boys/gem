@@ -1,0 +1,5 @@
+{
+  "name": "Gemini AI Playground",
+  "description": "An interactive web application to explore the capabilities of the Gemini API. It features a simple prompt completion tool and a conversational chat interface.",
+  "requestFramePermissions": []
+}
