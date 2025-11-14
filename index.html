@@ -1,24 +1,269 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gemini AI Playground</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; /* slate-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; /* slate-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
   }
 }
 </script>
 </head>
 <body class="bg-slate-900 text-slate-100">
-    <div id="root"></div>
-    <script type="module" src="/index.js"></script>
+    <div class="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-4xl mx-auto">
+            <header class="text-center mb-8">
+                <h1 class="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300">
+                    Gemini AI Playground
+                </h1>
+                <p class="mt-2 text-slate-400">
+                    بین حالت پاسخ ساده و چت گفتگو محور جابجا شوید.
+                </p>
+            </header>
+            
+            <div class="flex justify-center mb-8">
+                <div class="bg-slate-800 p-1 rounded-lg flex space-x-1" dir="ltr">
+                    <button id="mode-simple-btn" class="px-4 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-sky-500 bg-sky-600 text-white shadow-md">Simple Prompt</button>
+                    <button id="mode-chat-btn" class="px-4 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-sky-500 bg-slate-700 hover:bg-slate-600 text-slate-300">Chat</button>
+                </div>
+            </div>
+
+            <main class="bg-slate-800/50 rounded-xl shadow-2xl backdrop-blur-md border border-slate-700">
+                <!-- Simple Prompt View -->
+                <div id="simple-prompt-view" class="p-6 sm:p-8">
+                    <h2 class="text-2xl font-bold text-sky-400 mb-4">پاسخ ساده</h2>
+                    <div class="flex flex-col gap-4">
+                        <textarea id="simple-prompt-input" placeholder="مثلاً، یک لطیفه درباره هوش مصنوعی بگو" class="w-full h-32 p-3 bg-slate-700 border border-slate-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"></textarea>
+                        <button id="simple-generate-btn" class="flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-200 self-end">
+                            <span class="btn-text">تولید پاسخ</span>
+                            <span class="spinner hidden animate-spin h-5 w-5 text-white"></span>
+                        </button>
+                    </div>
+                    <div id="simple-response-area" class="mt-6"></div>
+                </div>
+
+                <!-- Chat View -->
+                <div id="chat-view" class="hidden flex flex-col h-[70vh]">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                        <!-- Messages will be injected here -->
+                    </div>
+                    <div class="p-4 border-t border-slate-700">
+                         <div id="chat-error-area" class="mb-2"></div>
+                        <div class="flex items-center gap-2 bg-slate-700 rounded-lg p-1">
+                            <input type="text" id="chat-input" placeholder="پیام خود را تایپ کنید..." class="flex-1 bg-transparent p-2 text-slate-100 placeholder-slate-400 focus:outline-none">
+                            <button id="chat-send-btn" class="p-2 bg-sky-600 rounded-md text-white hover:bg-sky-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors" aria-label="Send message">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 9-3 9 19-9Z"></path><path d="M6 12h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+<script type="module">
+    // --- STATE AND ELEMENTS ---
+    let mode = 'simple';
+    let chatHistory = [];
+    let isLoading = false;
+
+    const simpleBtn = document.getElementById('mode-simple-btn');
+    const chatBtn = document.getElementById('mode-chat-btn');
+    const simpleView = document.getElementById('simple-prompt-view');
+    const chatView = document.getElementById('chat-view');
+    
+    // Simple Mode Elements
+    const simpleInput = document.getElementById('simple-prompt-input');
+    const simpleGenerateBtn = document.getElementById('simple-generate-btn');
+    const simpleResponseArea = document.getElementById('simple-response-area');
+
+    // Chat Mode Elements
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatErrorArea = document.getElementById('chat-error-area');
+
+    // --- UI HELPERS ---
+
+    function setLoading(button, loading) {
+        isLoading = loading;
+        const text = button.querySelector('.btn-text');
+        const spinner = button.querySelector('.spinner');
+        
+        button.disabled = loading;
+        if (text && spinner) {
+            text.classList.toggle('hidden', loading);
+            spinner.classList.toggle('hidden', !loading);
+        }
+        simpleInput.disabled = loading;
+        chatInput.disabled = loading;
+        chatSendBtn.disabled = loading;
+    }
+
+    function renderError(container, message) {
+        container.innerHTML = `<div class="p-4 bg-red-900/50 border border-red-500 text-red-300 rounded-lg">${message}</div>`;
+    }
+
+    // --- MODE SWITCHING LOGIC ---
+    
+    function switchMode(newMode) {
+        mode = newMode;
+        if (mode === 'simple') {
+            simpleView.classList.remove('hidden');
+            chatView.classList.add('hidden');
+            simpleBtn.classList.replace('bg-slate-700', 'bg-sky-600');
+            simpleBtn.classList.replace('hover:bg-slate-600', 'text-white');
+            chatBtn.classList.replace('bg-sky-600', 'bg-slate-700');
+            chatBtn.classList.add('hover:bg-slate-600', 'text-slate-300');
+
+        } else {
+            simpleView.classList.add('hidden');
+            chatView.classList.remove('hidden');
+            chatBtn.classList.replace('bg-slate-700', 'bg-sky-600');
+            chatBtn.classList.replace('hover:bg-slate-600', 'text-white');
+            simpleBtn.classList.replace('bg-sky-600', 'bg-slate-700');
+            simpleBtn.classList.add('hover:bg-slate-600', 'text-slate-300');
+        }
+    }
+
+    simpleBtn.addEventListener('click', () => switchMode('simple'));
+    chatBtn.addEventListener('click', () => switchMode('chat'));
+
+    // --- SIMPLE PROMPT LOGIC ---
+
+    async function handleSimpleGenerate() {
+        const prompt = simpleInput.value.trim();
+        if (!prompt || isLoading) return;
+
+        setLoading(simpleGenerateBtn, true);
+        simpleResponseArea.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/simple', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `Request failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            simpleResponseArea.innerHTML = `
+                <div class="mt-4 p-4 bg-slate-900/70 border border-slate-700 rounded-lg">
+                    <h3 class="text-lg font-semibold text-sky-300 mb-2">پاسخ</h3>
+                    <p class="text-slate-300 whitespace-pre-wrap font-mono">${data.text}</p>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Simple generate error:', error);
+            renderError(simpleResponseArea, `خطا در تولید محتوا: ${error.message}`);
+        } finally {
+            setLoading(simpleGenerateBtn, false);
+        }
+    }
+    
+    simpleGenerateBtn.addEventListener('click', handleSimpleGenerate);
+
+    // --- CHAT LOGIC ---
+
+    function appendMessage(role, text) {
+        const isUser = role === 'user';
+        const messageBubble = document.createElement('div');
+        messageBubble.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+        messageBubble.innerHTML = `
+            <div class="max-w-xs md:max-w-md lg:max-w-2xl px-4 py-3 rounded-2xl ${isUser ? 'bg-sky-700 rounded-br-lg' : 'bg-slate-700 rounded-bl-lg'}">
+                <p class="text-white whitespace-pre-wrap">${text}</p>
+            </div>
+        `;
+        chatMessages.appendChild(messageBubble);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function handleSendMessage() {
+        const message = chatInput.value.trim();
+        if (!message || isLoading) return;
+
+        appendMessage('user', message);
+        chatHistory.push({ role: 'user', parts: [{ text: message }] });
+        chatInput.value = '';
+        chatErrorArea.innerHTML = '';
+        setLoading(chatSendBtn, true);
+
+        // Show thinking indicator
+        const thinkingIndicator = document.createElement('div');
+        thinkingIndicator.className = 'thinking-indicator flex justify-start';
+        thinkingIndicator.innerHTML = `
+            <div class="flex items-center gap-2 max-w-xs px-4 py-3 rounded-2xl bg-slate-700 rounded-bl-lg">
+                <span class="spinner animate-spin h-5 w-5 text-white"></span>
+                <p class="text-white">در حال فکر کردن...</p>
+            </div>`;
+        chatMessages.appendChild(thinkingIndicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ history: chatHistory }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `Request failed with status ${response.status}`);
+            }
+            
+            const data = await response.json();
+            appendMessage('model', data.text);
+            chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            renderError(chatErrorArea, `خطا در ارسال پیام: ${error.message}`);
+            // Remove the last user message from history on failure
+            chatHistory.pop(); 
+            chatMessages.lastChild.remove(); // Remove the user message bubble
+        } finally {
+            chatMessages.querySelector('.thinking-indicator')?.remove();
+            setLoading(chatSendBtn, false);
+            chatInput.focus();
+        }
+    }
+
+    chatSendBtn.addEventListener('click', handleSendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    });
+
+</script>
+
 </body>
 </html>

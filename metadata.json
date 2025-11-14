@@ -1,5 +1,5 @@
 {
   "name": "Gemini AI Playground",
-  "description": "An interactive web application to explore the capabilities of the Gemini API. It features a simple prompt completion tool and a conversational chat interface.",
+  "description": "An interactive web application to explore the capabilities of the Gemini API, built with vanilla JavaScript and a secure Cloudflare Worker backend. It features a simple prompt completion tool and a conversational chat interface.",
   "requestFramePermissions": []
 }
