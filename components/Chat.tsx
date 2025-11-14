@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ai } from '../services/geminiService';
 import { type Message, type Role } from '../types';
-// FIX: Renamed the imported `Chat` type to `GeminiChat` to avoid a name collision with the component.
-import { type Chat as GeminiChat } from '@google/genai';
 import { SendIcon, SpinnerIcon } from './icons';
+
+// Infer the chat session type from the `ai.chats.create` method.
+// This is more robust than a direct type import.
+type GeminiChat = ReturnType<typeof ai.chats.create>;
 
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // FIX: Use the renamed `GeminiChat` type.
   const chatRef = useRef<GeminiChat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
