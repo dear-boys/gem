@@ -154,17 +154,15 @@
     
     // --- ROBUST ERROR HANDLING FOR FETCH ---
     async function getErrorFromResponse(response) {
-        let errorMessage = `Request failed with status ${response.status}`;
+        const responseText = await response.text(); // Read body once and for all
+        let errorMessage;
         try {
-            // Try to parse a JSON error response
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
+            // Try to parse the text as JSON
+            const errorData = JSON.parse(responseText);
+            errorMessage = errorData.error || `Request failed with status ${response.status}`;
         } catch (e) {
-            // If response is not JSON, read as text
-            const errorText = await response.text();
-            if (errorText) {
-                errorMessage = errorText;
-            }
+            // If it's not JSON, use the raw text, or a default message
+            errorMessage = responseText || `Request failed with status ${response.status}`;
         }
         return new Error(errorMessage);
     }
@@ -219,13 +217,14 @@
         `;
         chatMessages.appendChild(messageBubble);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        return messageBubble; // Return the element so we can remove it on error
     }
 
     async function handleSendMessage() {
         const message = chatInput.value.trim();
         if (!message || isLoading) return;
-
-        appendMessage('user', message);
+        
+        const userMessageBubble = appendMessage('user', message);
         chatHistory.push({ role: 'user', parts: [{ text: message }] });
         chatInput.value = '';
         chatErrorArea.innerHTML = '';
@@ -262,7 +261,7 @@
             renderError(chatErrorArea, `خطا در ارسال پیام: ${error.message}`);
             // Remove the last user message from history on failure
             chatHistory.pop(); 
-            chatMessages.lastChild.remove(); // Remove the user message bubble
+            userMessageBubble.remove(); // Remove the user message bubble from the UI
         } finally {
             chatMessages.querySelector('.thinking-indicator')?.remove();
             setLoading(chatSendBtn, false);
